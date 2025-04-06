@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Connections</title>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .section { margin-bottom: 20px; }
+        pre { background: #f4f4f4; padding: 10px; border-radius: 5px; }
+    </style>
+</head>
+<body>
+    <h1>Connections Dashboard</h1>
+    <div class="section">
+        <h2>Peers</h2>
+        <pre id="peers">Loading...</pre>
+    </div>
+    <div class="section">
+        <h2>Torrents</h2>
+        <pre id="torrents">Loading...</pre>
+    </div>
+    <script>
+        async function fetchData() {
+            const peersResponse = await fetch('http://localhost:8081/api/peers');
+            const torrentsResponse = await fetch('http://localhost:8081/api/torrents');
+            const peers = await peersResponse.json();
+            const torrents = await torrentsResponse.json();
+            document.getElementById('peers').textContent = JSON.stringify(peers, null, 2);
+            document.getElementById('torrents').textContent = JSON.stringify(torrents, null, 2);
+        }
+        setInterval(fetchData, 5000); // Обновлять каждые 5 секунд
+        fetchData(); // Начальная загрузка
+    </script>
+</body>
+</html>
