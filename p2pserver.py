@@ -343,3 +343,19 @@ class DHTNode:
     def _calculate_file_hash(self, file_path: Path) -> str:
         stat = file_path.stat()
         return digest(f"{file_path.name}{stat.st_size}{stat.st_mtime}").hex()
+async def main():
+    # Создайте экземпляр DHTNode (замените port и files_dir на нужные значения)
+    node = DHTNode(port=6881, files_dir=Path("/dht_node.py"))
+    
+    # Запустите ноду
+    await node.start()
+    
+    # Добавьте бесконечный цикл, чтобы программа продолжала работать
+    while True:
+        await asyncio.sleep(3600)  # Ждем час перед следующей итерацией
+
+if __name__ == "__main__":
+    try:
+        asyncio.run(main())
+    except KeyboardInterrupt:
+        print("Программа завершена пользователем")
