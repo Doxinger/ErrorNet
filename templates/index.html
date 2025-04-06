@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ErrorNet</title>
+    <style>
+        :root {
+            --primary-color: #2196F3;
+            --hover-color: #1976D2;
+            --background: #f5f5f5;
+            --text-color: #333;
+        }
+
+        body {
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            margin: 0;
+            padding: 2rem;
+            background: var(--background);
+            color: var(--text-color);
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            color: var(--primary-color);
+            margin-bottom: 2rem;
+            font-weight: 300;
+        }
+
+        .toolbar {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+
+        button {
+            padding: 0.6rem 1.2rem;
+            background: var(--primary-color);
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        button:hover {
+            background: var(--hover-color);
+            transform: translateY(-1px);
+        }
+
+        .loader {
+            animation: rotate 1s linear infinite;
+            display: none;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background: white;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        th, td {
+            padding: 1rem;
+            text-align: left;
+            border-bottom: 1px solid #eee;
+        }
+
+        th {
+            background: var(--primary-color);
+            color: white;
+            font-weight: 500;
+        }
+
+        tr:hover {
+            background: #f8f9fa;
+        }
+
+        .file-link {
+            color: var(--primary-color);
+            text-decoration: none;
+            font-weight: 500;
+        }
+
+        .file-link:hover {
+            text-decoration: underline;
+        }
+
+        .error-alert {
+            padding: 1rem;
+            background: #ffebee;
+            color: #b71c1c;
+            border-radius: 4px;
+            margin: 1rem 0;
+            display: none;
+        }
+
+        @keyframes rotate {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+
+        @media (max-width: 768px) {
+            table, thead, tbody, th, td, tr {
+                display: block;
+            }
+
+            thead tr {
+                position: absolute;
+                top: -9999px;
+                left: -9999px;
+            }
+
+            tr {
+                padding: 1rem;
+                border-bottom: 2px solid #eee;
+            }
+
+            td {
+                display: flex;
+                justify-content: space-between;
+                padding: 0.5rem 1rem;
+            }
+
+            td::before {
+                content: attr(data-label);
+                font-weight: 500;
+                margin-right: 1rem;
+            }
+        }
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+</head>
+<body>
+    <div class="container">
+        <h1>ErrorNet File Sharing</h1>
+
+        <div class="toolbar">
+            <button id="refreshButton">
+                <span class="loader">↻</span>
+                Refresh Files
+            </button>
+        </div>
+
+        <div class="error-alert" id="errorAlert"></div>
+
+        <table>
+            <thead>
+                <tr>
+                    <th>File Name</th>
+                    <th>Size</th>
+                    <th>Upload Date</th>
+                    <th>Versions</th>
+                </tr>
+            </thead>
+            <tbody id="fileList">
+                <tr>
+                    <td colspan="4">Loading files...</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <script>
+        const formatSize = bytes => {
+            if (bytes === 0) return '0 B';
+            const units = ['B', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(1024));
+            return `${(bytes / Math.pow(1024, i)).toFixed(1)} ${units[i]}`;
+        };
+
+        const formatDate = timestamp => {
+            const date = new Date(timestamp);
+            return date.toLocaleDateString('en-US', {
+                year: 'numeric',
+                month: 'short',
+                day: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+        };
+
+        const showError = message => {
+            const alert = document.getElementById('errorAlert');
+            alert.textContent = message;
+            alert.style.display = 'block';
+            setTimeout(() => alert.style.display = 'none', 5000);
+        };
+
+        const updateUI = files => {
+            const tbody = document.getElementById('fileList');
+            tbody.innerHTML = '';
+
+            if (files.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="4">No files available</td>
+                    </tr>
+                `;
+                return;
+            }
+
+            files.forEach(file => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td data-label="File Name">
+                        <a class="file-link"
+                           href="/files/${encodeURIComponent(file.name)}"
+                           target="_blank">
+                            ${file.name}
+                        </a>
+                    </td>
+                    <td data-label="Size">${formatSize(file.size)}</td>
+                    <td data-label="Upload Date">${formatDate(file.registered_at)}</td>
+                    <td data-label="Versions">${file.change_count}</td>
+                `;
+                tbody.appendChild(row);
+            });
+        };
+
+        const fetchFiles = async () => {
+            try {
+                document.querySelector('.loader').style.display = 'inline-block';
+                const response = await axios.get('/api/files');
+
+                if (!response.data.success) {
+                    throw new Error(response.data.error || 'Unknown error');
+                }
+
+                updateUI(response.data.files);
+            } catch (error) {
+                console.error('Error:', error);
+                showError(`Failed to load files: ${error.message}`);
+                updateUI([]);
+            } finally {
+                document.querySelector('.loader').style.display = 'none';
+            }
+        };
+
+        document.getElementById('refreshButton').addEventListener('click', fetchFiles);
+        window.addEventListener('DOMContentLoaded', fetchFiles);
+    </script>
+</body>
+</html>
